@@ -1,12 +1,11 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import speech_recognition as sr
 import yaml
 import subprocess
 import time
 
-class QBOtalkMycroft:
+class QBOtalkMycroft(object):
 
 	def __init__(self):
 

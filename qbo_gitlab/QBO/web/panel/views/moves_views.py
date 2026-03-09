@@ -1,4 +1,4 @@
-import imp
+import importlib.util
 import os
 
 from rest_framework import status
@@ -24,13 +24,13 @@ class MoveView(APIView):
             # Call system module for convert text to speech
             # Load external script 'Speak.py' from filesystem
             try:
-                speak = imp.load_source(
-                    'speak',
-                    '{}/../../../Speak.py'.format(os.path.dirname(os.path.abspath(__file__)))
-                )
+                _speak_path = '{}/../../../Speak.py'.format(os.path.dirname(os.path.abspath(__file__)))
+                _spec = importlib.util.spec_from_file_location('speak', _speak_path)
+                speak = importlib.util.module_from_spec(_spec)
+                _spec.loader.exec_module(speak)
 
                 speak.SpeechText_2(text_to_speech, text_to_speech)
-            except (IOError, ImportError), e:
+            except (IOError, ImportError) as e:
                 return Response(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             return Response(text_to_speech, status=status.HTTP_200_OK)

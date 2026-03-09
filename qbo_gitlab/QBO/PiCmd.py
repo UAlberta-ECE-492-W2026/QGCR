@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import serial
 import subprocess
@@ -58,10 +57,10 @@ def get_command():
 		if arg in commands:
 			cmd = str(arg)
 		else:
-			print "wrong command"
+			print("wrong command")
 
 	except:
-		print "command param error"
+		print("command param error")
 
 
 def get_angle():
@@ -74,10 +73,10 @@ def get_angle():
 			angle = int(arg)
 
 		else:
-			print "wrong angle value"
+			print("wrong angle value")
 
 	except:
-		print "wrong angle value"
+		print("wrong angle value")
 
 
 def get_text():
@@ -97,7 +96,7 @@ def get_text():
 			text += " " + arg
 
 	except:
-		print "wrong text value"
+		print("wrong text value")
 
 
 def get_pid():
@@ -120,9 +119,9 @@ def get_pid():
 			i += 1
 
 	except:
-		print "wrong pid value"
+		print("wrong pid value")
 
-	print "PID: " + str(pid)
+	print("PID: " + str(pid))
 
 
 def get_axis():
@@ -134,7 +133,7 @@ def get_axis():
 		axis = int(arg)
 
 	else:
-		print "wrong axis value"
+		print("wrong axis value")
 
 
 def get_speed():
@@ -147,10 +146,10 @@ def get_speed():
 			speed = int(arg)
 
 		else:
-			print "wrong speed value"
+			print("wrong speed value")
 
 	except:
-		print "wrong speed value"
+		print("wrong speed value")
 
 
 def get_color():
@@ -163,10 +162,10 @@ def get_color():
 			color = arg
 
 		else:
-			print "wrong color value"
+			print("wrong color value")
 
 	except:
-		print "color param error"
+		print("color param error")
 
 
 def get_language():
@@ -179,10 +178,10 @@ def get_language():
 			lang = arg
 
 		else:
-			print "wrong language value"
+			print("wrong language value")
 
 	except:
-		print "laguage param error"
+		print("laguage param error")
 
 
 def get_youtube_code():
@@ -200,17 +199,17 @@ def get_mouth_expression():
 			expression = arg
 
 		else:
-			print "wrong expression value"
+			print("wrong expression value")
 
 	except:
-		print "expression param error"
+		print("expression param error")
 
 
 def get_mouth_matrix():
 	global matrix, idx
 
-	print "GET_MOUTH_MATRIX"
-	print "idx: " + str(idx)
+	print("GET_MOUTH_MATRIX")
+	print("idx: " + str(idx))
 
 	try:
 
@@ -219,49 +218,49 @@ def get_mouth_matrix():
 		while i < 4:
 
 			arg = scan_argument(idx)
-			print "arg: " + arg
+			print("arg: " + arg)
 
 			matrix |= int(arg) << (8 * (3 - i))
-			print "arg matrix: " + str(matrix)
+			print("arg matrix: " + str(matrix))
 
 			i = i + 1
 			idx = idx + 1
 
 	except:
-		print "mouth matrix param error"
+		print("mouth matrix param error")
 
 
 def say():
-	print ""
+	print("")
 
 
 def help():
 	global cmd
 
 	cmd = "help"
-	print " "
-	print "Options:"
-	print "-c [command] servo, nose, say, mouth, listen or voice"
-	print "-a [angle] from -180 to 180"
-	print "-x [axis] 1 or 2"
-	print "-s [speed] from 1 to 2000"
-	print "-co [color] none, red, green or blue"
-	print "-l [language] english or spanish"
-	print "-m [matrix] mouth leds matrix"
-	print "-e [expression] smile, sad or serious"
-	print "-y [Youtube URL] Play sound of Youtube Video"
-	print " "
-	print "EXAMPLES: "
-	print "-c servo -a 30 -x 1 -s 200"
-	print "-c nose -co red"
-	print " "
+	print(" ")
+	print("Options:")
+	print("-c [command] servo, nose, say, mouth, listen or voice")
+	print("-a [angle] from -180 to 180")
+	print("-x [axis] 1 or 2")
+	print("-s [speed] from 1 to 2000")
+	print("-co [color] none, red, green or blue")
+	print("-l [language] english or spanish")
+	print("-m [matrix] mouth leds matrix")
+	print("-e [expression] smile, sad or serious")
+	print("-y [Youtube URL] Play sound of Youtube Video")
+	print(" ")
+	print("EXAMPLES: ")
+	print("-c servo -a 30 -x 1 -s 200")
+	print("-c nose -co red")
+	print(" ")
 
 
 def CommandOK_Action():
 	global config, ser, HeadServo, color
 
 	if cmd == "servo" and angle != 0 and axis != 0 and speed >= 0:
-		print "Sending: " + cmd + "(" + str(axis) + "," + str(angle) + "," + str(speed) + ")"
+		print("Sending: " + cmd + "(" + str(axis) + "," + str(angle) + "," + str(speed) + ")")
 		HeadServo.SetServo(axis, angle, speed)
 
 	elif cmd == "move" and angle != 0 and axis != 0:
@@ -272,7 +271,7 @@ def CommandOK_Action():
 
 	elif cmd == "nose" and color != "":
 
-		print "Sending: " + cmd + "(" + str(color) + ")"
+		print("Sending: " + cmd + "(" + str(color) + ")")
 
 		# the led of the nose goes off
 		# call to the command "nose"
@@ -289,10 +288,10 @@ def CommandOK_Action():
 
 		print("Opening FIFO..." + FIFO_say)
 		fifo_say = os.open(FIFO_say, os.O_WRONLY)
-		os.write(fifo_say, text)
+		os.write(fifo_say, text.encode('utf-8'))
 		os.close(fifo_say)
 
-		print "Saying: " + text
+		print("Saying: " + text)
 
 	elif cmd == "voice":
 
@@ -301,18 +300,18 @@ def CommandOK_Action():
 		with open('/opt/qbo/config.yml', 'w') as f:
 			yaml.dump(config, f)
 
-		print "Setting: " + cmd + " = " + str(lang)
+		print("Setting: " + cmd + " = " + str(lang))
 		f.close()
 
 	elif cmd == "mouth":
 
 		if matrix != 0:
-			print "Sending " + cmd + "(" + str(matrix) + ")"
+			print("Sending " + cmd + "(" + str(matrix) + ")")
 			HeadServo.SetMouth(matrix)
 
 		elif expression != "":
 
-			print "Sending " + cmd + "(" + expression + ")"
+			print("Sending " + cmd + "(" + expression + ")")
 
 			if expression == "smile":
 				HeadServo.SetMouth(0x110E00)
@@ -338,7 +337,7 @@ def CommandOK_Action():
 		subprocess.call("youtube-dl --extract-audio --audio-format wav -o \"/tmp/song_youtube.%(ext)s\" " + youtube_url + " ; aplay /tmp/song_youtube.wav -D convertQBO", shell=True)
 
 	else:
-		print "Command error. Type ? to help"
+		print("Command error. Type ? to help")
 
 
 options = {"-c": get_command,
@@ -387,13 +386,13 @@ try:
 
 	# Open serial port
 	ser = serial.Serial(port, baudrate=115200, bytesize=serial.EIGHTBITS, stopbits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE, rtscts=False, dsrdtr=False, timeout=0)
-	print "Open serial port sucessfully."
+	print("Open serial port sucessfully.")
 	print(ser.name)
 
 	HeadServo = Controller(ser)
 
 except:
-	print "Error opening serial port."
+	print("Error opening serial port.")
 	sys.exit()
 
 # if parameters in command then execute action

@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import cv2
 import serial
@@ -51,11 +50,11 @@ else:
 try:
 	# Open serial port
 	ser = serial.Serial(port, baudrate=115200, bytesize=serial.EIGHTBITS, stopbits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE, rtscts=False, dsrdtr=False, timeout=0)
-	print "Open serial port sucessfully."
+	print("Open serial port sucessfully.")
 	print(ser.name)
 
 except:
-	print "Error opening serial port."
+	print("Error opening serial port.")
 	sys.exit()
 
 controller = Controller(ser)
@@ -65,8 +64,8 @@ controller.SetServo(2, Ycoor, 100)
 controller.SetNoseColor(0)  # Off QBO nose brigth
 
 webcam = cv2.VideoCapture(0)  # Get ready to start getting images from the webcam
-webcam.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 320)  # I have found this to be about the highest-
-webcam.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 240)  # resolution you'll want to attempt on the pi
+webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 320)  # I have found this to be about the highest-
+webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)  # resolution you'll want to attempt on the pi
 
 frontalface = cv2.CascadeClassifier("/opt/qbo/haarcascades/haarcascade_frontalface_alt2.xml")  # frontal face pattern detection
 profileface = cv2.CascadeClassifier("/opt/qbo/haarcascades/haarcascade_profileface.xml")  # side face pattern detection
@@ -183,8 +182,8 @@ def WaitTouchMove():
 	return
 
 
-print" Face tracking running."
-print" QBO nose bright green when see your face"
+print(" Face tracking running.")
+print(" QBO nose bright green when see your face")
 
 talk.SpeechText("I am ready.")
 
@@ -203,7 +202,7 @@ while True:
 			aframe = webcam.read()[1]  # there seems to be an issue in OpenCV or V4L or my webcam-
 			aframe = webcam.read()[1]  # driver, I'm not sure which, but if you wait too long,
 			aframe = webcam.read()[1]  # the webcam consistantly gets exactly five frames behind-
-			fface = frontalface.detectMultiScale(aframe, 1.3, 4, (cv2.cv.CV_HAAR_DO_CANNY_PRUNING + cv2.cv.CV_HAAR_FIND_BIGGEST_OBJECT + cv2.cv.CV_HAAR_DO_ROUGH_SEARCH), (60, 60))
+			fface = frontalface.detectMultiScale(aframe, 1.3, 4, (cv2.CASCADE_DO_CANNY_PRUNING + cv2.CASCADE_FIND_BIGGEST_OBJECT + cv2.CASCADE_DO_ROUGH_SEARCH), (60, 60))
 
 			if fface != ():  # if we found a frontal face...
 				lastface = 1  # set lastface 1 (so next loop we will only look for a frontface)
@@ -217,7 +216,7 @@ while True:
 			aframe = webcam.read()[1]  # THIS method was the one who found it last loop
 			aframe = webcam.read()[1]
 			aframe = webcam.read()[1]  # again we grab some frames, things may have gotten stale-
-			pfacer = profileface.detectMultiScale(aframe, 1.3, 4, (cv2.cv.CV_HAAR_DO_CANNY_PRUNING + cv2.cv.CV_HAAR_FIND_BIGGEST_OBJECT + cv2.cv.CV_HAAR_DO_ROUGH_SEARCH), (80, 80))
+			pfacer = profileface.detectMultiScale(aframe, 1.3, 4, (cv2.CASCADE_DO_CANNY_PRUNING + cv2.CASCADE_FIND_BIGGEST_OBJECT + cv2.CASCADE_DO_ROUGH_SEARCH), (80, 80))
 
 			if pfacer != ():  # if we found a profile face...
 				lastface = 2
@@ -321,5 +320,5 @@ while True:
 				WaitTouchMove()
 
 	if touch_tm != 0 and time.time() - touch_tm > touch_wait:
-		print "touch ready"
+		print("touch ready")
 		touch_tm = 0

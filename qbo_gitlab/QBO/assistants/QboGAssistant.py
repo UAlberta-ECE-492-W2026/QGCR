@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 from google.assistant.library import Assistant
 from google.assistant.library.event import EventType
@@ -10,7 +9,7 @@ import subprocess
 import threading
 
 
-class GAssistant:
+class GAssistant(object):
 
 	onConversation = False
 	doBlip = True
@@ -41,7 +40,7 @@ class GAssistant:
 		self.thread.start()
 
 	def stop(self):
-		if self.thread.isAlive():
+		if self.thread.is_alive():
 			self.thread.join()
 
 	def start_conversation_from_face(self):

@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 from assistants.QboTalk import QBOtalk
 import errno
@@ -54,13 +53,13 @@ def WaitForSpeech():
 	elif talk.GetAudio == True:
 
 		fifo = os.open(FIFO_cmd, os.O_WRONLY)
-		os.write(fifo, "-c nose -co red")
+		os.write(fifo, b"-c nose -co red")
 		os.close(fifo)
 		listen_thd(wait_for_stop=True)
 
 		print("Ha llegado algo al WaitForSpeech: " + talk.strAudio)
 		fifo = os.open(FIFO_listen, os.O_WRONLY)
-		os.write(fifo, talk.strAudio)
+		os.write(fifo, talk.strAudio.encode('utf-8'))
 		os.close(fifo)
 
 	return
@@ -80,7 +79,7 @@ except OSError as oe:
 
 listen_thd = talk.StartBackListen()
 fifo = os.open(FIFO_cmd, os.O_WRONLY)
-os.write(fifo, "-c nose -co green")
+os.write(fifo, b"-c nose -co green")
 os.close(fifo)
 
 while True:
@@ -90,7 +89,7 @@ while True:
 
 	if talk.GetAudio == True:
 		fifo = os.open(FIFO_cmd, os.O_WRONLY)
-		os.write(fifo, "-c nose -co red")
+		os.write(fifo, b"-c nose -co red")
 		os.close(fifo)
 		time.sleep(1)
 
@@ -99,7 +98,7 @@ while True:
 		try:
 			listen_thd = talk.StartBackListen()
 			fifo = os.open(FIFO_cmd, os.O_WRONLY)
-			os.write(fifo, "-c nose -co green")
+			os.write(fifo, b"-c nose -co green")
 			os.close(fifo)
 			talk.GetAudio = False
 		except:

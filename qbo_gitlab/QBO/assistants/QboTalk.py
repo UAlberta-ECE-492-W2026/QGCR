@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import apiai
 import json
@@ -10,7 +9,7 @@ import wave
 import yaml
 
 
-class QBOtalk:
+class QBOtalk(object):
 
 	def __init__(self):
 
@@ -56,22 +55,22 @@ class QBOtalk:
 		return str_resp
 
 	def downsampleWav(self, src):
-		print "src: " + src
+		print("src: " + src)
 		s_read = wave.open(src, 'r')
-		print "frameRate: " + s_read.getframerate()
+		print("frameRate: " + str(s_read.getframerate()))
 		s_read.setframerate(16000)
-		print "frameRate_2: " + s_read.getframerate()
+		print("frameRate_2: " + str(s_read.getframerate()))
 		return
 
 	def downsampleWave_2(self, src, dst, inrate, outrate, inchannels, outchannels):
 
 		if not os.path.exists(src):
-			print 'Source not found!'
+			print('Source not found!')
 			return False
 
 		if not os.path.exists(os.path.dirname(dst)):
-			print "dst: " + dst
-			print "path: " + os.path.dirname(dst)
+			print("dst: " + dst)
+			print("path: " + os.path.dirname(dst))
 			os.makedirs(os.path.dirname(dst))
 
 		try:
@@ -79,7 +78,7 @@ class QBOtalk:
 			s_write = wave.open(dst, 'w')
 
 		except:
-			print 'Failed to open files!'
+			print('Failed to open files!')
 			return False
 
 		n_frames = s_read.getnframes()
@@ -91,7 +90,7 @@ class QBOtalk:
 				converted = audioop.tomono(converted[0], 2, 1, 0)
 
 		except:
-			print 'Failed to downsample wav'
+			print('Failed to downsample wav')
 			return False
 
 		try:
@@ -99,7 +98,7 @@ class QBOtalk:
 			s_write.writeframes(converted)
 
 		except:
-			print 'Failed to write wav'
+			print('Failed to write wav')
 			return False
 
 		try:
@@ -107,7 +106,7 @@ class QBOtalk:
 			s_write.close()
 
 		except:
-			print 'Failed to close wav files'
+			print('Failed to close wav files')
 			return False
 
 		return True

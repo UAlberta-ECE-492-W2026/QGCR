@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import sys
 
@@ -15,12 +14,12 @@ if len(sys.argv) == 1:
 		idx = 0
 
 		print("Opening FIFO...")
-		line = raw_input('QBO_>> ')
+		line = input('QBO_>> ')
 
 		with open(FIFO_cmd, 'w') as fifo:
 
 			print("FIFO opened")
-			print "line: ", line
+			print("line: ", line)
 
 			fifo.write(line)
 

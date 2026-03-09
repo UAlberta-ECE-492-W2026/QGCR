@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import subprocess
 import os
@@ -29,7 +28,7 @@ def SayFromFile():
 			else:
 				speak = "pico2wave -l \"en-US\" -w /opt/qbo/sounds/pico2wave.wav \"<volume level='" + str(config["volume"]) + "'>" + data + "\" && aplay -D convertQBO /opt/qbo/sounds/pico2wave.wav"
 
-			print "say.py: " + speak
+			print("say.py: " + speak)
 
 			subprocess.call("/opt/qbo/scripts/QBO_listen.sh stop", shell=True)
 			subprocess.call(speak, shell=True)

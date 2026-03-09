@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import subprocess
 import wave
@@ -16,7 +15,7 @@ from watson_developer_cloud import AssistantV2
 from VisualRecognition import VisualRecognition
 
 
-class QBOWatson:
+class QBOWatson(object):
 
 	def __init__(self):
 		self.config = yaml.safe_load(open("/opt/qbo/config.yml"))
@@ -77,12 +76,12 @@ class QBOWatson:
 				audio = pyaudio.PyAudio()
 				stream = audio.open(format=self.FORMAT, channels=self.CHANNELS, rate=self.RATE, input=True, frames_per_buffer=self.CHUNK)
 
-				print "recording..."
+				print("recording...")
 				frames = []
 				for i in range(0, int(self.RATE / self.CHUNK * self.RECORD_SECONDS)):
 					data = stream.read(self.CHUNK)
 					frames.append(data)
-				print "finished recording"
+				print("finished recording")
 
 				# stop Recording
 				stream.stop_stream()
@@ -122,7 +121,7 @@ class QBOWatson:
 					if self.vc.askAboutMe(self.strAudio):
 						self.GetResponse = False
 
-						print "Started visual recognition"
+						print("Started visual recognition")
 						subprocess.call("aplay /opt/qbo/sounds/blip_0.wav", shell=True)
 
 						self.vc.captureAndRecognizeImageWatson(self.webcam)
@@ -153,7 +152,7 @@ class QBOWatson:
 
 	def askToAssistant(self, text):
 
-		print("Understood message: %s" % text.encode("utf-8"))
+		print("Understood message: %s" % text)
 
 		try:
 			session = self.assistant.create_session(self.assistantID).get_result()
@@ -161,7 +160,7 @@ class QBOWatson:
 
 			message = self.assistant.message(self.assistantID, self.sessionID, input={'text': text}).get_result()
 
-			self.Response = message['output']['generic'][0]['text'].encode("utf-8")
+			self.Response = message['output']['generic'][0]['text']
 			self.GetResponse = True
 
 			print("Watson Assistant Response: %s" % self.Response)

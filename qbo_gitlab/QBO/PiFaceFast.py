@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: latin-1 -*-
 
 import os
@@ -8,9 +8,8 @@ import serial
 import sys
 import time
 import Speak
-import thread
+import _thread
 import yaml
-import imp
 from assistants.QboGAssistant import GAssistant
 from assistants.QboWatson import QBOWatson
 from assistants.QboTalk import QBOtalk
@@ -24,10 +23,10 @@ from assistants.QboDialogFlowV2 import QboDialogFlowV2
 config = yaml.safe_load(open("/opt/qbo/config.yml"))
 
 if config["distro"] == "ibmwatson":
-	print "Mode: IBM Watson"
+	print("Mode: IBM Watson")
 
 	if len(config['AssistantAPIKey']) < 2 and len(config['AssistantURL']) < 2 and len(config['AssistantID']) < 2 and len(config['TextToSpeechAPIKey']) < 2 and len(config['TextToSpeechURL']) < 2 and len(config['SpeechToTextAPIKey']) < 2 and len(config['SpeechToTextURL']) < 2:
-		print "Warning: Missing IBM Watson configuration parameters."
+		print("Warning: Missing IBM Watson configuration parameters.")
 		Speak.SpeechText_2("Notice. In order to use the IBM Watson service you must specify the tokens APIs. Access the web panel, fill in the information and click on Save and restart.", "Aviso. Para poder usar el servicio IBM Watson debe especificar los API tokens. Acceda al panel web, complete los datos y presione sobre Guardar y reiniciar.", True)
 		exit(0)
 
@@ -42,16 +41,16 @@ if config["distro"] == "ibmwatson":
 
 else:
 	if config["startWith"] == "interactive-dialogflow":
-		print "Mode: Dialogflow"
+		print("Mode: Dialogflow")
 
 		talk = QBOtalk()
 		interactiveTypeGAssistant = False
 
 	elif config["startWith"] == "interactive-dialogflow-v2":
-		print "Mode: Dialogflow V2"
+		print("Mode: Dialogflow V2")
 
 		if not os.path.isfile("/opt/qbo/.config/dialogflowv2.json"):
-			print "Warning: Missing Dialogflow V2 JSON file. Set file in /opt/qbo/.config/dialogflowv2.json"
+			print("Warning: Missing Dialogflow V2 JSON file. Set file in /opt/qbo/.config/dialogflowv2.json")
 			Speak.SpeechText_2("Notice. Set the Dialogflow V2 configuration file as indicated in the instruction manual.", "Aviso. Establezca el archivo de configuraci�n de Dialogflow V2 como indica el manual de instrucciones.", True)
 			exit(0)
 
@@ -59,17 +58,17 @@ else:
 		interactiveTypeGAssistant = False
 
 	elif config["startWith"] == "interactive-mycroft":
-		print "Mode: MyCroft"
+		print("Mode: MyCroft")
 		subprocess.call('sudo bash /opt/qbo/mycroft-core/start-mycroft.sh audio && sudo bash /opt/qbo/mycroft-core/start-mycroft.sh bus && sudo bash /opt/qbo/mycroft-core/start-mycroft.sh skills', shell=True)
 
 		talk = QBOtalkMycroft()
 		interactiveTypeGAssistant = False
 
 	else:
-		print "Mode: Google Assistant"
+		print("Mode: Google Assistant")
 
 		if not os.path.isfile("/opt/qbo/.config/google-oauthlib-tool/credentials.json") or len(config["gassistant_proyectid"]) < 2:
-			print "Warning: Missing Google Assistant JSON file or proyectid token in settings. Set file in /opt/qbo/.config/google-oauthlib-tool/credentials.json and set Project ID in settings."
+			print("Warning: Missing Google Assistant JSON file or proyectid token in settings. Set file in /opt/qbo/.config/google-oauthlib-tool/credentials.json and set Project ID in settings.")
 			Speak.SpeechText_2("Notice. Set the Google Assistant configuration file as indicated in the instruction manual and set the Project ID on the configuration web.", "Aviso. Establezca el archivo de configuraci�n de Google Assistant como indica el manual de instrucciones y establezca el Project ID en la web de configuraci�n.", True)
 			exit(0)
 
@@ -98,7 +97,7 @@ Ymin = 420
 
 Xcoor = 511
 Ycoor = int(Ymin + float(config["headYPosition"]) / 100 * (Ymax - Ymin))
-print "Calculated initial head position: XCoor " + str(Xcoor) + ", YCoor " + str(Ycoor)
+print("Calculated initial head position: XCoor " + str(Xcoor) + ", YCoor " + str(Ycoor))
 Facedet = 0
 
 ## Time head wait turned
@@ -127,11 +126,11 @@ else:
 try:
 	# Open serial port
 	ser = serial.Serial(port, baudrate=115200, bytesize=serial.EIGHTBITS, stopbits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE, rtscts=False, dsrdtr=False, timeout=0)
-	print "Open serial port sucessfully."
+	print("Open serial port sucessfully.")
 	print(ser.name)
 
 except:
-	print "Error opening serial port."
+	print("Error opening serial port.")
 	sys.exit()
 
 controller = Controller(ser)
@@ -144,7 +143,7 @@ except KeyError:
 
 controller.SetServo(1, Xcoor, int(config["servoSpeed"]))
 controller.SetServo(2, Ycoor, int(config["servoSpeed"]))
-print "Positioning head: XCoor " + str(Xcoor) + ", YCoor " + str(Ycoor)
+print("Positioning head: XCoor " + str(Xcoor) + ", YCoor " + str(Ycoor))
 
 time.sleep(1)
 #controller.SetPid(1, 26, 12, 16)
@@ -156,12 +155,12 @@ time.sleep(1)
 controller.SetNoseColor(0)  # Off QBO nose brigth
 
 webcam = cv2.VideoCapture(int(config['camera']))  # Get ready to start getting images from the webcam
-webcam.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 320)  # I have found this to be about the highest-
-webcam.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 240)  # resolution you'll want to attempt on the pi
+webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 320)  # I have found this to be about the highest-
+webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)  # resolution you'll want to attempt on the pi
 #webcam.set(cv2.CV_CAP_PROP_BUFFERSIZE, 2)		# frame buffer storage
 
 if not webcam:
-	print "Error opening WebCAM"
+	print("Error opening WebCAM")
 	sys.exit(1)
 
 if config["distro"] == "ibmwatson":
@@ -195,7 +194,7 @@ def ServoHome():
 	controller.SetServo(2, Ycoor, int(config["servoSpeed"]))
 	touch_tm = time.time()
 
-	print "Repositioning head: XCoor " + str(Xcoor) + ", YCoor " + str(Ycoor)
+	print("Repositioning head: XCoor " + str(Xcoor) + ", YCoor " + str(Ycoor))
 
 	return
 
@@ -222,7 +221,7 @@ def WaitForSpeech():
 		elif config["distro"] != "ibmwatson" and vc.askAboutMe(talk.strAudio):
 			talk.GetResponse = False
 
-			print "Started visual recognition"
+			print("Started visual recognition")
 			subprocess.call("aplay /opt/qbo/sounds/blip_0.wav", shell=True)
 			
 			vc.captureAndRecognizeImage(webcam)
@@ -300,8 +299,8 @@ def HotwordListenedEvent():
 
 StartHotwordListener()
 
-print" Face tracking running."
-print" QBO nose bright green when see your face"
+print(" Face tracking running.")
+print(" QBO nose bright green when see your face")
 
 Speak.SpeechText_2("I am ready.", "Estoy preparado.")
 
@@ -316,7 +315,7 @@ while True:
 	faceFound = False  # This variable is set to true if, on THIS loop a face has already been found
 	# We search for a face three diffrent ways, and if we have found one already-
 	# there is no reason to keep looking.
-	thread.start_new_thread(WaitForSpeech, ())
+	_thread.start_new_thread(WaitForSpeech, ())
 	#	WaitForSpeech()
 
 	if HotwordListened:
@@ -345,7 +344,7 @@ while True:
 				aframe = webcam.read()[1]
 
 			# print "t: " + str(time.time()-t_ini)
-			fface = frontalface.detectMultiScale(aframe, 1.3, 4, (cv2.cv.CV_HAAR_DO_CANNY_PRUNING + cv2.cv.CV_HAAR_FIND_BIGGEST_OBJECT + cv2.cv.CV_HAAR_DO_ROUGH_SEARCH), (60, 60))
+			fface = frontalface.detectMultiScale(aframe, 1.3, 4, (cv2.CASCADE_DO_CANNY_PRUNING + cv2.CASCADE_FIND_BIGGEST_OBJECT + cv2.CASCADE_DO_ROUGH_SEARCH), (60, 60))
 
 			if fface != ():  # if we found a frontal face...
 				face_not_found_idx = 0
@@ -363,7 +362,7 @@ while True:
 				aframe = webcam.read()[1]
 
 			# print "tp: " + str(time.time()-t_ini)
-			pfacer = profileface.detectMultiScale(aframe, 1.3, 4, (cv2.cv.CV_HAAR_DO_CANNY_PRUNING + cv2.cv.CV_HAAR_FIND_BIGGEST_OBJECT + cv2.cv.CV_HAAR_DO_ROUGH_SEARCH), (80, 80))
+			pfacer = profileface.detectMultiScale(aframe, 1.3, 4, (cv2.CASCADE_DO_CANNY_PRUNING + cv2.CASCADE_FIND_BIGGEST_OBJECT + cv2.CASCADE_DO_ROUGH_SEARCH), (80, 80))
 
 			if pfacer != ():  # if we found a profile face...
 				face_not_found_idx = 0
@@ -375,7 +374,7 @@ while True:
 	if not faceFound:  # if no face was found...-
 
 		face_not_found_idx += 1
-		print "No face " + str(face_not_found_idx)
+		print("No face " + str(face_not_found_idx))
 
 		if face_not_found_idx > 5:
 			face_not_found_idx = 0
@@ -388,7 +387,7 @@ while True:
 			if Facedet != 0:
 				Facedet = 0
 				no_face_tm = time.time()
-				print "No face, 5 times!"
+				print("No face, 5 times!")
 
 			elif time.time() - no_face_tm > 10:
 				ServoHome()
@@ -470,14 +469,14 @@ while True:
 				controller.SetServo(1, Xmax - 25, int(config["servoSpeed"]))
 				time.sleep(0.002)
 				controller.SetServo(2, Ymin - 5, int(config["servoSpeed"]))
-				thread.start_new_thread(WaitTouchMove, ())
+				_thread.start_new_thread(WaitTouchMove, ())
 				# wait for begin touch move.
 				time.sleep(1)
 
 			elif qbo_touch == [2]:
 				time.sleep(0.002)
 				controller.SetServo(2, Ymin - 5, int(config["servoSpeed"]))
-				thread.start_new_thread(WaitTouchMove, ())
+				_thread.start_new_thread(WaitTouchMove, ())
 				# wait for begin touch move.
 				time.sleep(1)
 
@@ -485,12 +484,12 @@ while True:
 				controller.SetServo(1, Xmin + 25, int(config["servoSpeed"]))
 				time.sleep(0.002)
 				controller.SetServo(2, Ymin - 5, int(config["servoSpeed"]))
-				thread.start_new_thread(WaitTouchMove, ())
+				_thread.start_new_thread(WaitTouchMove, ())
 				# wait for begin touch move.
 				time.sleep(1)
 
 	if touch_tm != 0 and time.time() - touch_tm > touch_wait:
-		print "touch ready"
+		print("touch ready")
 		touch_tm = 0
 
 

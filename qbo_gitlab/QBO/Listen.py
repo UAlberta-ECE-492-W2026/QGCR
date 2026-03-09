@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import os
 import errno
@@ -18,10 +17,10 @@ def WaitForSpeech():
 
 	global Listening, listen_thd, FIFO_listen, FIFO_cmd
 
-	print "WaitForSpeech: Listening=" + str(Listening) + "getAudio=" + str(talk.GetAudio)
+	print("WaitForSpeech: Listening=" + str(Listening) + "getAudio=" + str(talk.GetAudio))
 
 	if Listening == False:
-		print "Listening = False"
+		print("Listening = False")
 		return
 
 	elif talk.GetAudio == True:
@@ -29,7 +28,7 @@ def WaitForSpeech():
 		print("Something has arrived at WaitForSpeech: " + talk.strAudio)
 
 		fifo = os.open(FIFO_listen, os.O_WRONLY)
-		os.write(fifo, talk.strAudio)
+		os.write(fifo, talk.strAudio.encode('utf-8'))
 		os.close(fifo)
 
 		talk.GetAudio = False
@@ -60,7 +59,7 @@ while True:
 	if talk.GetAudio == True:
 
 		fifo = os.open(FIFO_cmd, os.O_WRONLY)
-		os.write(fifo, "-c nose -co red")
+		os.write(fifo, b"-c nose -co red")
 		os.close(fifo)
 
 		time.sleep(1)

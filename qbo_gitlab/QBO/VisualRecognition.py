@@ -1,7 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
-
-from __future__ import print_function
+#!/usr/bin/env python3
 import os
 import time
 import yaml
@@ -236,7 +233,7 @@ if __name__ == '__main__':
 	vc = VisualRecognition(True)
 
 	while True:
-		raw_input('Press Enter to capture or CTRL+C to close.')
+		input('Press Enter to capture or CTRL+C to close.')
 
 		print("Photo in ", end="")
 

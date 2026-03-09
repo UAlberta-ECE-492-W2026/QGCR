@@ -1,10 +1,9 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import time
 
 
-class Command:
+class Command(object):
 
 	def __init__(self, command, nInputs, Data):
 		self.cmd = command
@@ -12,7 +11,7 @@ class Command:
 		self.data_bytes = Data
 
 
-class Controller:
+class Controller(object):
 
 	def __init__(self, serial):
 		self.port = serial
@@ -160,15 +159,14 @@ class Controller:
 		while True:
 			rdBuffer = self.port.read()
 
-			for i in rdBuffer:
-				x = ord(i)
+			for x in rdBuffer:
 				if x == self.INPUT_FLAG:
 					rx_data = []
 					isInputEscaped = False
 				elif x == self.OUTPUT_FLAG:
 					rx_data.append(x)
 					bExit = True
-					break;
+					break
 				elif isInputEscaped:
 					rx_data[len(rx_data) - 1] += 2
 					isInputEscaped = False
@@ -180,7 +178,7 @@ class Controller:
 
 			ellapsed_tm = self.EllapsedTime(wait_start)
 			if bExit == True or (ellapsed_tm > 0.249):
-				break;
+				break
 		return rx_data
 
 	def ProcessRxData(self, data):
@@ -204,7 +202,7 @@ class Controller:
 		return rx_param
 
 	def GetHeadCmd(self, cmd, cmd_buffer):
-		if self.cmd_params.has_key(cmd) == False:
+		if cmd not in self.cmd_params:
 			return 0
 		nParams = self.cmd_params[cmd][1]
 		tx_buffer = []
@@ -220,9 +218,9 @@ class Controller:
 			if len(rxBuffer) >= 5:
 				break
 			else:
-				print "NACK ", rxBuffer
+				print("NACK ", rxBuffer)
 		if len(rxBuffer) < 5:
-			print" Error reading response.!"
+			print(" Error reading response.!")
 		rdParam = self.ProcessRxData(rxBuffer)
 		return rdParam
 
@@ -282,7 +280,7 @@ class Controller:
 
 	def SetAngleRelative(self, Axis, Angle):
 		cmd_buffer = ([Axis, Angle & 0xff, (Angle >> 8) & 0xff])
-		print "SetAnlgeRelative: (" + str(Axis) + "," + str(Angle) + ")"
+		print("SetAnlgeRelative: (" + str(Axis) + "," + str(Angle) + ")")
 		return self.SendCmdQBO(Command(self.SET_SERVO_ANGLE_REL, len(cmd_buffer), cmd_buffer))
 
 	# Mounts protocol data to set QBO nose state color
@@ -298,7 +296,7 @@ class Controller:
 
 	def SetPid(self, Axis, pid_p, pid_i, pid_d):
 		cmd_buffer = ([Axis, pid_p, pid_i, pid_d])
-		print "SetPid " + str(cmd_buffer)
+		print("SetPid " + str(cmd_buffer))
 		return self.SendCmdQBO(Command(self.SET_SERVO_PID, len(cmd_buffer), cmd_buffer))
 
 	def SetMicrophoneGain(self, gain):

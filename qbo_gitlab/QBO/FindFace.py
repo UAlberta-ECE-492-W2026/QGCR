@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import cv2
 import sys
@@ -22,12 +21,12 @@ face_det_tm = time.time()
 face_not_found_idx = 0
 
 webcam = cv2.VideoCapture(int(config['camera']))  # Get ready to start getting images from the webcam
-webcam.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 320)  # I have found this to be about the highest-
-webcam.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 240)  # resolution you'll want to attempt on the pi
+webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 320)  # I have found this to be about the highest-
+webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)  # resolution you'll want to attempt on the pi
 #webcam.set(cv2.CV_CAP_PROP_BUFFERSIZE, 2)		# frame buffer storage
 
 if not webcam:
-	print "Error opening WebCAM"
+	print("Error opening WebCAM")
 	sys.exit(1)
 
 frontalface = cv2.CascadeClassifier("/opt/qbo/haarcascades/haarcascade_frontalface_alt2.xml")  # frontal face pattern detection
@@ -67,7 +66,7 @@ while True:
 				t_ini = time.time()
 				aframe = webcam.read()[1]  # there seems to be an issue in OpenCV or V4L or my webcam-
 			#print "t: " + str(time.time()-t_ini)
-			fface = frontalface.detectMultiScale(aframe, 1.3, 4, (cv2.cv.CV_HAAR_DO_CANNY_PRUNING + cv2.cv.CV_HAAR_FIND_BIGGEST_OBJECT + cv2.cv.CV_HAAR_DO_ROUGH_SEARCH), (60, 60))
+			fface = frontalface.detectMultiScale(aframe, 1.3, 4, (cv2.CASCADE_DO_CANNY_PRUNING + cv2.CASCADE_FIND_BIGGEST_OBJECT + cv2.CASCADE_DO_ROUGH_SEARCH), (60, 60))
 			if fface != ():  # if we found a frontal face...
 				#print "FAAACEEEE"
 				lastface = 1  # set lastface 1 (so next loop we will only look for a frontface)
@@ -82,7 +81,7 @@ while True:
 				t_ini = time.time()
 				aframe = webcam.read()[1]  # there seems to be an issue in OpenCV or V4L or my webcam-
 			#print "tp: " + str(time.time()-t_ini)
-			pfacer = profileface.detectMultiScale(aframe, 1.3, 4, (cv2.cv.CV_HAAR_DO_CANNY_PRUNING + cv2.cv.CV_HAAR_FIND_BIGGEST_OBJECT + cv2.cv.CV_HAAR_DO_ROUGH_SEARCH), (80, 80))
+			pfacer = profileface.detectMultiScale(aframe, 1.3, 4, (cv2.CASCADE_DO_CANNY_PRUNING + cv2.CASCADE_FIND_BIGGEST_OBJECT + cv2.CASCADE_DO_ROUGH_SEARCH), (80, 80))
 
 			if pfacer != ():  # if we found a profile face...
 				#print "PROFILE FAAACEEEE"
@@ -109,7 +108,7 @@ while True:
 		Cface = [(w / 2 + x), (h / 2 + y)]  # we are given an x,y corner point and a width and height, we need the center
 		#print "face ccord: " + str(Cface[0]) + "," + str(Cface[1])
 		fifo = os.open(FIFO_findFace, os.O_WRONLY)
-		os.write(fifo, str(Cface[0]) + "," + str(Cface[1]) + "\n")
+		os.write(fifo, (str(Cface[0]) + "," + str(Cface[1]) + "\n").encode('utf-8'))
 		if Facedet == 0:
 			Facedet = 1
 			face_det_tm = time.time()

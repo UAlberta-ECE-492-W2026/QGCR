@@ -1,5 +1,4 @@
-#!/usr/bin/env python2
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import os
 import errno
@@ -23,13 +22,13 @@ try:
 	# Open serial port
 	ser = serial.Serial(port, baudrate=115200, bytesize=serial.EIGHTBITS, stopbits=serial.STOPBITS_ONE, parity=serial.PARITY_NONE, rtscts=False, dsrdtr=False, timeout=0)
 
-	print "Open serial port sucessfully."
+	print("Open serial port sucessfully.")
 	print(ser.name)
 
 	HeadServo = Controller(ser)
 
 except:
-	print "Error opening serial port."
+	print("Error opening serial port.")
 	sys.exit()
 
 
@@ -50,7 +49,7 @@ def WaitForTouch():
 		if touch == [1] or touch == [2] or touch == [3]:
 			print(touch_str + "TO FIFO FEEL")
 			fifo = os.open(FIFO_feel, os.O_WRONLY)
-			os.write(fifo, touch_str)
+			os.write(fifo, touch_str.encode('utf-8'))
 
 	time.sleep(.250)
 	return touch_str

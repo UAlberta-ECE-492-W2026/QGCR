@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: latin-1 -*-
+#!/usr/bin/env python3
 
 import uuid
 import os
@@ -11,7 +10,7 @@ import tempfile
 import speech_recognition as sr
 
 
-class QboDialogFlowV2:
+class QboDialogFlowV2(object):
 
 	def __init__(self, credentialFile="/opt/qbo/.config/dialogflowv2.json"):
 		self.config = yaml.safe_load(open("/opt/qbo/config.yml"))
@@ -32,12 +31,12 @@ class QboDialogFlowV2:
 		audio = pyaudio.PyAudio()
 		stream = audio.open(format=self.FORMAT, channels=self.CHANNELS, rate=self.RATE, input=True, frames_per_buffer=self.CHUNK)
 
-		print "recording..."
+		print("recording...")
 		frames = []
 		for i in range(0, int(self.RATE / self.CHUNK * self.RECORD_SECONDS)):
 			data = stream.read(self.CHUNK)
 			frames.append(data)
-		print "finished recording"
+		print("finished recording")
 
 		# stop Recording
 		stream.stop_stream()
