@@ -10,7 +10,7 @@ def read_config():
     try:
         with open(FULL_FILE_NAME, 'r') as stream:
             try:
-                return yaml.load(stream)
+                return yaml.safe_load(stream)
 
             except yaml.YAMLError:
                 # Can't load actual config

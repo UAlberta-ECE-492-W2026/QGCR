@@ -1,4 +1,4 @@
-from django.conf.urls import url
+from django.urls import re_path
 from django.views.generic import TemplateView
 
 from panel.views.home_views import HomeView
@@ -9,19 +9,19 @@ from panel.views.upgrade_views import ChangelogView, UpdatingView
 urlpatterns = [
 
     # Home view
-    url(r'^$', HomeView.as_view(), name='home'),
+    re_path(r'^$', HomeView.as_view(), name='home'),
 
     # Only templates
-    url(r'^checkers$', TemplateView.as_view(template_name='checkers-wrapper.html'), name='checkers'),
-    url(r'^checkers-game$', TemplateView.as_view(template_name='checkers-game.html'), name='checkers-game'),
+    re_path(r'^checkers$', TemplateView.as_view(template_name='checkers-wrapper.html'), name='checkers'),
+    re_path(r'^checkers-game$', TemplateView.as_view(template_name='checkers-game.html'), name='checkers-game'),
 
     # Upgrade
-    url(r'^upgrade$', ChangelogView.as_view(), name='upgrade'),
-    url(r'^updating', UpdatingView.as_view(), name='updating'),
+    re_path(r'^upgrade$', ChangelogView.as_view(), name='upgrade'),
+    re_path(r'^updating', UpdatingView.as_view(), name='updating'),
 
     # Settings
-    url(r'^settings$', ConfigView.as_view(template_name='settings.html'), name='settings'),
+    re_path(r'^settings$', ConfigView.as_view(template_name='settings.html'), name='settings'),
 
     # REST API
-    url(r'^api/talk-move', MoveView.as_view(), name='talk-move'),
+    re_path(r'^api/talk-move', MoveView.as_view(), name='talk-move'),
 ]

@@ -2,7 +2,7 @@ import subprocess
 
 from django.views.generic import FormView
 from django.contrib import messages
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
 from panel.forms.config_form import BaseConfigForm, StandaloneConfigForm, IBMWatsonConfigForm
