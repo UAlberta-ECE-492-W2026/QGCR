@@ -307,7 +307,7 @@ pcm.convertQBO {
 
     # Set crontab
     echo "@reboot qbo /opt/qbo/Start.py" >> /etc/crontab
-    echo "@reboot qbo python /opt/qbo/web/manage.py runserver 0.0.0.0:8000" >> /etc/crontab
+    echo "@reboot qbo python3 /opt/qbo/web/manage.py runserver 0.0.0.0:8000" >> /etc/crontab
     echo "* * * * * qbo bash /opt/qbo/scripts/WiFiSearchQR.sh" >> /etc/crontab
     echo "0 15 * * * root bash /opt/qbo/scripts/UpdateMyCroft.sh" >> /etc/crontab
 
