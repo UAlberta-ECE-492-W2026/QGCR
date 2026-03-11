@@ -4,7 +4,7 @@ import socket
 
 from django import forms
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 
 FOLDER_NAME = settings.QBO_FOLDER
@@ -132,7 +132,7 @@ class BaseConfigForm(forms.Form):
             with open(FULL_FILE_NAME, 'r') as stream:
                 try:
                     # Merge with default config
-                    config.update(yaml.load(stream))
+                    config.update(yaml.safe_load(stream))
 
                 except yaml.YAMLError:
                     # Can't load actual config

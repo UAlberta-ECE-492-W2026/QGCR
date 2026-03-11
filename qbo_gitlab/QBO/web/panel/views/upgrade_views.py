@@ -15,7 +15,7 @@ class ChangelogView(TemplateView):
 
         # Call script to obtain the changelog lines and split
         changelog = subprocess.check_output(['sudo', settings.QBO_UPDATE_SCRIPT, 'update', 'changelog']) \
-            .split('\n')
+            .decode('utf-8').split('\n')
 
         # Avoid array with an empty result
         if changelog and not changelog[0]:
