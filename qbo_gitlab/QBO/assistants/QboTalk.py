@@ -20,13 +20,31 @@ class QBOtalk(object):
 		self.GetResponse = False
 		self.GetAudio = False
 		self.strAudio = ""
+		self.m = None
 
+		# Try to find the original QBO microphone by its name.
+		mic_index = None
 		for i, mic_name in enumerate(sr.Microphone.list_microphone_names()):
 			if mic_name == "dmicQBO_sv":
-				self.m = sr.Microphone(i)
+				mic_index = i
+				break
 
-		with self.m as source:
-			self.r.adjust_for_ambient_noise(source)
+		try:
+			if mic_index is not None:
+				self.m = sr.Microphone(device_index=mic_index)
+			else:
+				# Fallback: use the default microphone so the code still works
+				# on systems where the original QBO mic name is not present.
+				print("Warning: 'dmicQBO_sv' microphone not found. Using default microphone.")
+				self.m = sr.Microphone()
+		except OSError as e:
+			# No usable microphone found – log and leave self.m as None so callers can handle it.
+			print("Error initializing microphone for QBOtalk:", e)
+			self.m = None
+
+		if self.m is not None:
+			with self.m as source:
+				self.r.adjust_for_ambient_noise(source)
 
 	def Decode(self, audio):
 		try:

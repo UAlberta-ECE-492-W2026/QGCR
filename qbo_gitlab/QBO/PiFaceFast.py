@@ -15,9 +15,9 @@ from assistants.QboWatson import QBOWatson
 from assistants.QboTalk import QBOtalk
 from assistants.QboTalkMycroft import QBOtalkMycroft
 from controller.QboController import Controller
-from snowboy.snowboythreaded import ThreadedDetector
 from VisualRecognition import VisualRecognition
 from assistants.QboDialogFlowV2 import QboDialogFlowV2
+from hotword_openwakeword import OpenWakeWordListener
 
 
 config = yaml.safe_load(open("/opt/qbo/config.yml"))
@@ -277,17 +277,29 @@ def WaitTouchMove():
 
 	return
 
+hotword_listener = None
+
+
 def StartHotwordListener():
-	global threaded_detector
-	if interactiveTypeGAssistant == False:
-		threaded_detector = ThreadedDetector("/opt/qbo/voicemodels/Hi_QBO.pmdl", sensitivity=0.4, audio_gain=1)
-		threaded_detector.start()
-		threaded_detector.start_recog(detected_callback=HotwordListenedEvent)
+	global hotword_listener
+
+	# If Google Assistant interactive mode is active, we do not start a separate hotword listener.
+	if interactiveTypeGAssistant:
+		return
+
+	# Use openWakeWord-based listener.
+	if hotword_listener is None:
+		hotword_listener = OpenWakeWordListener(HotwordListenedEvent)
+		hotword_listener.start()
+
 
 def StopHotwordListener():
-	global threaded_detector
-	if interactiveTypeGAssistant == False:
-		threaded_detector.terminate()
+	global hotword_listener
+	if interactiveTypeGAssistant:
+		return
+	if hotword_listener is not None:
+		hotword_listener.stop()
+		hotword_listener = None
 
 def DialogflowV2SeeFace():
 	talk.record_wav()
