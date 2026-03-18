@@ -1,72 +1,55 @@
 #!/usr/bin/env python3
 
-from google.assistant.library import Assistant
-from google.assistant.library.event import EventType
-import google.oauth2.credentials
-import io
+import os
 import json
 import subprocess
 import threading
+import google.auth.transport.requests
+import google.oauth2.credentials
+from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2_grpc
+from google.assistant.embedded.v1alpha2 import embedded_assistant_pb2
+import grpc
 
-
+# Note: We now use the gRPC assistant, not the Library 'Assistant'
 class GAssistant(object):
+    onConversation = False
+    doBlip = True
 
-	onConversation = False
-	doBlip = True
+    def __init__(self, device_model_id, credentials_file='/opt/qbo/.config/google-oauthlib-tool/credentials.json'):
+        # Load credentials properly for gRPC
+        with open(credentials_file, 'r') as f:
+            creds_data = json.load(f)
+            self.credentials = google.oauth2.credentials.Credentials(
+                token=None, 
+                refresh_token=creds_data.get('refresh_token'),
+                token_uri=creds_data.get('token_uri'),
+                client_id=creds_data.get('client_id'),
+                client_secret=creds_data.get('client_secret')
+            )
+        
+        self.device_model_id = device_model_id
+        self.device_id = "qbo_robot_device" # Can be any unique string
+        
+        # Initialize gRPC channel
+        self.channel = grpc.secure_channel(
+            'embeddedassistant.googleapis.com',
+            grpc.ssl_channel_credentials()
+        )
+        
+        self.assistant = embedded_assistant_pb2_grpc.EmbeddedAssistantStub(self.channel)
+        self.thread = threading.Thread(target=self.run)
+        self.thread.daemon = True
 
-	# Initializer
-	def __init__(self, deviceModelId, debug=False, credentialsFile='/opt/qbo/.config/google-oauthlib-tool/credentials.json'):
+    def run(self):
+        # The gRPC version works by sending/receiving audio streams
+        # For a full "OK Google" replacement, you would integrate 
+        # the Porcupine wake-word engine right here.
+        print("Assistant gRPC initialized.")
 
-		# Read credentials file
-		with io.open(credentialsFile, 'r') as f:
-			self.credentials = google.oauth2.credentials.Credentials(token=None,
-																	 **json.load(f))
-		self.deviceModelId = deviceModelId
-		self.debug = debug
-
-		# Create thread
-		self.thread = threading.Thread(target=self.run, args=())
-		self.thread.daemon = False
-
-	def run(self):
-		with Assistant(self.credentials, self.deviceModelId) as assistant:
-			self.assistant = assistant
-			for event in assistant.start():
-				self.process_event(event)
-				if self.debug == True:
-					print(event)
-
-	def start(self):
-		self.thread.start()
-
-	def stop(self):
-		if self.thread.is_alive():
-			self.thread.join()
-
-	def start_conversation_from_face(self):
-		self.doBlip = False
-		self.start_conversation()
-
-	def start_conversation(self):
-		if self.onConversation == False:
-			self.assistant.start_conversation()
-
-	def send_question(self, question):
-		self.assistant.send_text_query(question)
-
-	def stop_conversation(self):
-		if self.onConversation == True:
-			self.assistant.stop_conversation()
-
-	def process_event(self, event):
-		if event.type == EventType.ON_CONVERSATION_TURN_STARTED:
-			if self.doBlip:
-				subprocess.call("aplay /opt/qbo/sounds/blip_0.wav", shell=True)
-				self.doBlip = True
-			self.onConversation = True
-
-		if event.type == EventType.ON_CONVERSATION_TURN_FINISHED:
-			self.onConversation = False
-
-		if event.type == EventType.ON_CONVERSATION_TURN_TIMEOUT:
-			self.onConversation = False
+    def start_conversation(self):
+        """Triggers the assistant to start listening."""
+        if not self.onConversation:
+            print("Starting conversation...")
+            if self.doBlip:
+                subprocess.call("aplay /opt/qbo/sounds/blip_0.wav", shell=True)
+            # Logic to stream audio to Google goes here
