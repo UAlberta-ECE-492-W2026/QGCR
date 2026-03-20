@@ -163,6 +163,15 @@ if not webcam:
 	print("Error opening WebCAM")
 	sys.exit(1)
 
+# Read back actual resolution in case the camera ignored the set() calls.
+# Detection always runs on a 320x240 frame (resized if necessary), so the
+# center used for tracking is always (160, 120) regardless of capture size.
+frame_w = int(webcam.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_h = int(webcam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+frame_cx = 160
+frame_cy = 120
+print("Camera resolution: {}x{}, detect center: ({},{})".format(frame_w, frame_h, frame_cx, frame_cy))
+
 if config["distro"] == "ibmwatson":
 	talk.setWebcam(webcam)
 
@@ -356,9 +365,11 @@ while True:
 				aframe = webcam.read()[1]
 
 			# print "t: " + str(time.time()-t_ini)
+			if frame_w > 320:
+				aframe = cv2.resize(aframe, (320, 240))
 			fface = frontalface.detectMultiScale(aframe, 1.3, 4, (cv2.CASCADE_DO_CANNY_PRUNING + cv2.CASCADE_FIND_BIGGEST_OBJECT + cv2.CASCADE_DO_ROUGH_SEARCH), (60, 60))
 
-			if fface != ():  # if we found a frontal face...
+			if len(fface) > 0:  # if we found a frontal face...
 				face_not_found_idx = 0
 				lastface = 1  # set lastface 1 (so next loop we will only look for a frontface)
 				for f in fface:  # f in fface is an array with a rectangle representing a face
@@ -374,9 +385,11 @@ while True:
 				aframe = webcam.read()[1]
 
 			# print "tp: " + str(time.time()-t_ini)
+			if frame_w > 320:
+				aframe = cv2.resize(aframe, (320, 240))
 			pfacer = profileface.detectMultiScale(aframe, 1.3, 4, (cv2.CASCADE_DO_CANNY_PRUNING + cv2.CASCADE_FIND_BIGGEST_OBJECT + cv2.CASCADE_DO_ROUGH_SEARCH), (80, 80))
 
-			if pfacer != ():  # if we found a profile face...
+			if len(pfacer) > 0:  # if we found a profile face...
 				face_not_found_idx = 0
 				lastface = 2
 				for f in pfacer:
@@ -411,7 +424,7 @@ while True:
 		last_face_det_tm = time.time()
 		x, y, w, h = face
 
-		Cface = [(w / 2 + x), (h / 2 + y)]  # we are given an x,y corner point and a width and height, we need the center
+		Cface = [(w // 2 + x), (h // 2 + y)]  # we are given an x,y corner point and a width and height, we need the center
 		#print "face ccord: " + str(Cface[0]) + "," + str(Cface[1])
 
 		if Facedet == 0:
@@ -448,21 +461,22 @@ while True:
 
 		if touch_det == False:
 
-			faceOffset_X = 160 - Cface[0]
+			faceOffset_X = frame_cx - Cface[0]
 
 			if (faceOffset_X > 20) | (faceOffset_X < -20):
-
+				Xcoor = max(Xmin, min(Xmax, Xcoor + (faceOffset_X >> 1)))
 				time.sleep(0.002)
-				controller.SetAngleRelative(1, faceOffset_X >> 1)
+				controller.SetAngle(1, Xcoor)
 				# wait for move
 				time.sleep(0.05)
 
 			# print "MOVE REL X: " + str(faceOffset_X >> 1)
-			faceOffset_Y = Cface[1] - 120
+			faceOffset_Y = Cface[1] - frame_cy
 
 			if (faceOffset_Y > 20) | (faceOffset_Y < -20):
+				Ycoor = max(Ymin, min(Ymax, Ycoor + (faceOffset_Y >> 1)))
 				time.sleep(0.002)
-				controller.SetAngleRelative(2, faceOffset_Y >> 1)
+				controller.SetAngle(2, Ycoor)
 				# wait for move
 				time.sleep(0.05)
 

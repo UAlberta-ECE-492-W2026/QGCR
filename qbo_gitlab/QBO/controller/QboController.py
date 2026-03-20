@@ -210,7 +210,10 @@ class Controller(object):
 		if nParams > 1:
 			tx_buffer.extend(cmd_buffer)
 		elif nParams == 1:
-			tx_buffer.append(cmd_buffer)
+			if isinstance(cmd_buffer, list):
+				tx_buffer.append(cmd_buffer[0])
+			else:
+				tx_buffer.append(cmd_buffer)
 		for x in range(3):
 			self.port.reset_input_buffer()
 			self.SendCmdQBO(Command(self.cmd_params[cmd][0], nParams, tx_buffer))
@@ -237,7 +240,7 @@ class Controller(object):
 
 		for i in range(nParam):
 			if nParam == 1:
-				data = cmd.data_bytes  # [0]
+				data = cmd.data_bytes[0] if isinstance(cmd.data_bytes, list) else cmd.data_bytes
 			else:
 				data = cmd.data_bytes[i]
 
@@ -300,6 +303,7 @@ class Controller(object):
 		return self.SendCmdQBO(Command(self.SET_SERVO_PID, len(cmd_buffer), cmd_buffer))
 
 	def SetMicrophoneGain(self, gain):
+		gain = int(gain)
 		if gain <= 45:
 			value = 0x1
 		elif gain <= 60:

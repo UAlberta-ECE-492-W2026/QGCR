@@ -3,7 +3,12 @@
 import apiai
 import json
 import os
-import speech_recognition as sr
+try:
+	import speech_recognition as sr  # type: ignore[import-not-found]
+except ImportError:
+	# The robot depends on this at runtime; if it's missing we avoid crashing
+	# at import-time so other modes/tools can still run.
+	sr = None
 import subprocess
 import wave
 import yaml
@@ -12,20 +17,28 @@ import yaml
 class QBOtalk(object):
 
 	def __init__(self):
+		# Always define attributes up-front so later code can't fail with
+		# AttributeError even if initialization steps raise/short-circuit.
+		self.m = None
 
 		self.config = yaml.safe_load(open("/opt/qbo/config.yml"))
-		self.r = sr.Recognizer()
-		self.ai = apiai.ApiAI(self.config["tokenAPIai"])
+		self.r = sr.Recognizer() if sr is not None else None
+		self.ai = apiai.ApiAI(self.config["tokenAPIai"]) if sr is not None else None
 		self.Response = "hello"
 		self.GetResponse = False
 		self.GetAudio = False
 		self.strAudio = ""
-		self.m = None
 
-		# Try to find the original QBO microphone by its name.
+		if sr is None:
+			print("Warning: 'speech_recognition' module not installed; speech capture disabled.")
+			return
+
+		# Try to find the QBO microphone by name. Accept any of the known
+		# device names used across different QBO hardware revisions.
+		QBO_MIC_NAMES = ("dmicQBO_sv", "googlevoicehat", "voicehat")
 		mic_index = None
 		for i, mic_name in enumerate(sr.Microphone.list_microphone_names()):
-			if mic_name == "dmicQBO_sv":
+			if any(known in mic_name.lower() for known in QBO_MIC_NAMES):
 				mic_index = i
 				break
 
@@ -35,7 +48,7 @@ class QBOtalk(object):
 			else:
 				# Fallback: use the default microphone so the code still works
 				# on systems where the original QBO mic name is not present.
-				print("Warning: 'dmicQBO_sv' microphone not found. Using default microphone.")
+				print("Warning: QBO microphone not found by name. Using default microphone.")
 				self.m = sr.Microphone()
 		except OSError as e:
 			# No usable microphone found – log and leave self.m as None so callers can handle it.
@@ -129,20 +142,51 @@ class QBOtalk(object):
 
 		return True
 
-	def SpeechText(self, text_to_speech):
+	def _play_pico2wave(self, text, lang):
+		"""
+		Play TTS from pico2wave on Google Voice HAT / Pi 5.
 
-		if self.config["language"] == "spanish":
-			speak = "pico2wave -l \"es-ES\" -w /opt/qbo/sounds/pico2wave.wav \"<volume level='" + str(self.config["volume"]) + "'>" + text_to_speech + "\" && aplay -D convertQBO /opt/qbo/sounds/pico2wave.wav"
+		Pi 3 often used a custom ALSA PCM 'convertQBO'. On Pi 5, forcing S32/48k
+		in asound.conf or in a 32-bit WAV file often sounds wrong; letting ALSA
+		negotiate via plughw usually matches what worked before.
+
+		config.yml (all optional):
+		  audioPlaybackDevice: "plughw:0,0"   # default; use card index if not 0
+		  audioPlaybackMode: "plughw"        # plughw | raw48 | convertQBO
+		"""
+		vol = self.config["volume"]
+		wav = "/opt/qbo/sounds/pico2wave.wav"
+		mode = str(self.config.get("audioPlaybackMode", "plughw")).lower()
+		device = self.config.get("audioPlaybackDevice")
+		if device is None:
+			device = "convertQBO" if mode == "convertqbo" else "plughw:0,0"
+
+		gen = (
+			'pico2wave -l "{lang}" -w {wav} "<volume level=\'{vol}\'>{text}"'
+		).format(lang=lang, wav=wav, vol=vol, text=text)
+
+		if mode == "raw48":
+			# No WAV header mismatch: sox writes raw S32 48k stereo, aplay reads raw.
+			hw = self.config.get("audioPlaybackHwDevice", "hw:0,0")
+			cmd = (
+				"{gen} && sox {wav} -t raw -r 48000 -e signed-integer -b 32 -c 2 - "
+				"| aplay -D {hw} -t raw -f S32_LE -r 48000 -c 2"
+			).format(gen=gen, wav=wav, hw=hw)
 		else:
-			speak = "pico2wave -l \"en-US\" -w /opt/qbo/sounds/pico2wave.wav \"<volume level='" + str(self.config["volume"]) + "'>" + text_to_speech + "\" && aplay -D convertQBO /opt/qbo/sounds/pico2wave.wav"
-		subprocess.call(speak, shell=True)
+			# plughw or convertQBO: play the 16 kHz mono WAV; ALSA converts.
+			cmd = "{gen} && aplay -D {dev} {wav}".format(gen=gen, dev=device, wav=wav)
+
+		subprocess.call(cmd, shell=True)
+
+	def SpeechText(self, text_to_speech):
+		lang = "es-ES" if self.config["language"] == "spanish" else "en-US"
+		self._play_pico2wave(text_to_speech, lang)
 
 	def SpeechText_2(self, text_to_speech, text_spain):
 		if self.config["language"] == "spanish":
-			speak = "pico2wave -l \"es-ES\" -w /opt/qbo/sounds/pico2wave.wav \"<volume level='" + str(self.config["volume"]) + "'>" + text_spain + "\" && aplay -D convertQBO /opt/qbo/sounds/pico2wave.wav"
+			self._play_pico2wave(text_spain, "es-ES")
 		else:
-			speak = "pico2wave -l \"en-US\" -w /opt/qbo/sounds/pico2wave.wav \"<volume level='" + str(self.config["volume"]) + "'>" + text_to_speech + "\" && aplay -D convertQBO /opt/qbo/sounds/pico2wave.wav"
-		subprocess.call(speak, shell=True)
+			self._play_pico2wave(text_to_speech, "en-US")
 
 	def callback(self, recognizer, audio):
 		try:
@@ -161,7 +205,6 @@ class QBOtalk(object):
 			else:
 				self.strAudio = self.r.recognize_google(audio)
 
-			self.strAudio = self.r.recognize_google(audio)
 			self.GetAudio = True
 
 			print("listen: " + self.strAudio)
@@ -177,6 +220,13 @@ class QBOtalk(object):
 		print("Say something!")
 		self.r.operation_timeout = 10
 
+		if self.m is None:
+			print("Warning: microphone not initialized; cannot start speech capture.")
+			return
+		if self.r is None:
+			print("Warning: speech recognizer not available.")
+			return
+
 		with self.m as source:
 			audio = self.r.listen(source=source, timeout=2)
 
@@ -184,6 +234,13 @@ class QBOtalk(object):
 		self.SpeechText(response)
 
 	def StartBack(self):
+		if self.m is None:
+			print("Warning: microphone not initialized; cannot start background listening.")
+			return None
+		if self.r is None:
+			print("Warning: speech recognizer not available.")
+			return None
+
 		with self.m as source:
 			self.r.adjust_for_ambient_noise(source)
 
@@ -192,6 +249,13 @@ class QBOtalk(object):
 		return self.r.listen_in_background(self.m, self.callback)
 
 	def StartBackListen(self):
+		if self.m is None:
+			print("Warning: microphone not initialized; cannot start background listening (listen-only).")
+			return None
+		if self.r is None:
+			print("Warning: speech recognizer not available.")
+			return None
+
 		with self.m as source:
 			self.r.adjust_for_ambient_noise(source)
 
