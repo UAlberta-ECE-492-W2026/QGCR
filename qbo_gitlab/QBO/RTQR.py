@@ -11,7 +11,7 @@ def main():
 	config = yaml.safe_load(open("/opt/qbo/config.yml"))
 
 	# Set 0 to default camera
-	capture = cv2.VideoCapture(int(config['camera']))
+	capture = cv2.VideoCapture(int(config['camera']), cv2.CAP_V4L2)
 
 	while True:
 

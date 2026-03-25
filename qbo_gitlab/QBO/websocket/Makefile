@@ -3,7 +3,7 @@
 all:WebsocketServer
 
 WebsocketServer:WebsocketServer.c
-	gcc WebsocketServer.c -o WebsocketServer -lwebsockets -lpthread
+	gcc -std=c11 -Wall -Wextra -D_DEFAULT_SOURCE WebsocketServer.c -o WebsocketServer -lwebsockets -lpthread
 
 clean:
 	-rm WebsocketServer

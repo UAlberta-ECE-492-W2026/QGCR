@@ -1,307 +1,471 @@
+/*
+* QBO WebSocket bridge: FIFOs <-> libwebsockets.
+* Requires: libwebsockets, pthread.
+*
+* Note: lws_write() is normally meant to run from the lws service thread; the
+* FIFO threads call it with a mutex for compatibility with the original design.
+* For strict correctness, consider queueing messages and writing from a callback.
+*/
+
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
-#include <signal.h>
-#include <libwebsockets.h>
-#include <pthread.h>
 
-pthread_t tid, tid_2;
+
+
+
+#include <libwebsockets.h>
+
+
+
 
 #define KGRN "\033[0;32;32m"
 #define KCYN "\033[0;36m"
 #define KRED "\033[0;32;31m"
 #define KYEL "\033[1;33m"
-#define KMAG "\033[0;35m"
 #define KBLU "\033[0;32;34m"
 #define KCYN_L "\033[1;36m"
 #define RESET "\033[0m"
 
-static int destroy_flag = 0;
-static char c;
+
+
+
+#define FIFO_READ_CHUNK 1024
+#define WS_TX_BUF (LWS_SEND_BUFFER_PRE_PADDING + FIFO_READ_CHUNK + LWS_SEND_BUFFER_POST_PADDING)
+
+
+
+
+static volatile sig_atomic_t destroy_flag;
 static struct lws *wsi_p;
-static void INT_HANDLER(int signo) {
-	destroy_flag = 1;
-}
+static pthread_mutex_t ws_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-char * fifo_say = "/opt/qbo/pipes/pipe_say";
-char * fifo_cmd = "/opt/qbo/pipes/pipe_cmd";
-char * fifo_listen = "/opt/qbo/pipes/pipe_listen";
-char * fifo_feel = "/opt/qbo/pipes/pipe_feel";
-char * fifo_findFace = "/opt/qbo/pipes/pipe_findFace";
 
-/* *
- * websocket_write_back: write the string data to the destination wsi.
- */
-static int websocket_write_back(struct lws *wsi_in, char *str, int str_size_in) 
+
+
+static const char *const fifo_say = "/opt/qbo/pipes/pipe_say";
+static const char *const fifo_cmd = "/opt/qbo/pipes/pipe_cmd";
+static const char *const fifo_listen = "/opt/qbo/pipes/pipe_listen";
+static const char *const fifo_feel = "/opt/qbo/pipes/pipe_feel";
+static const char *const fifo_findFace = "/opt/qbo/pipes/pipe_findFace";
+
+
+
+
+static void INT_HANDLER(int signo)
 {
-	if (str == NULL || wsi_in == NULL)
-		return -1;
-	
-	int n;
-	int len;
-	char *out = NULL;
-	
-	if (str_size_in < 1) 
-		len = strlen(str);
-	else
-		len = str_size_in;
-	
-	out = (char *)malloc(sizeof(char)*(LWS_SEND_BUFFER_PRE_PADDING + len + LWS_SEND_BUFFER_POST_PADDING));
-	//* setup the buffer*/
-	memcpy (out + LWS_SEND_BUFFER_PRE_PADDING, str, len );
-	//* write out*/
-	n = lws_write(wsi_in, out + LWS_SEND_BUFFER_PRE_PADDING, len, LWS_WRITE_TEXT);
-	
-	printf(KBLU"[websocket_write_back] %s\n"RESET, str);
-	//* free the buffer*/
-	free(out);
-	
-	return n;
+  (void)signo;
+  destroy_flag = 1;
 }
 
-/* inspect PIPE LISTEN thread*/
-void* inspect_PIPE_LISTEN(void *arg)
+
+
+
+/* Write UTF-8 text frame to the active client (if any). */
+static int websocket_write_back(struct lws *wsi_in, const char *str, int str_size_in)
 {
-	char str_aux[80];
-	char str[256];
-	char strToSend[1024];
-	char strTotal[1024];
-	char strTextToSend[1024];
-	char listen_buff[1024];
-	int nread, fd;
-	int file_closed = 0, len_aux;
-	FILE *file, *fileTouch;
-	
-	while (1) {
-		sleep(1);
-		memset(listen_buff, 0, 1024);
-		/* read text from the FIFO_LISTEN */
-		fd = open(fifo_listen, O_RDONLY);
-		nread = read(fd, listen_buff, 1024);
-		printf ("From FIFO_LISTEN: %s\n", listen_buff);
-		close(fd);
+  if (str == NULL || wsi_in == NULL)
+      return -1;
 
-		if (nread) {
-			sprintf(strTextToSend, "Text: %s", listen_buff);
-			websocket_write_back(wsi_p ,(char *)strTextToSend, -1);
-		}
-	}
+
+
+
+  size_t len = (str_size_in < 1) ? strlen(str) : (size_t)str_size_in;
+  char *out = (char *)malloc(WS_TX_BUF);
+  if (out == NULL)
+      return -1;
+
+
+
+
+  memcpy(out + LWS_SEND_BUFFER_PRE_PADDING, str, len);
+  int n = lws_write(wsi_in, (unsigned char *)out + LWS_SEND_BUFFER_PRE_PADDING, len, LWS_WRITE_TEXT);
+  printf(KBLU "[websocket_write_back] %s\n" RESET, str);
+  free(out);
+  return n;
 }
 
-/* inspect PIPE FEEL thread*/
-void* inspect_PIPE_FEEL(void *arg)
+
+
+
+static int websocket_broadcast_safe(const char *msg)
 {
-	char strTextToSend[1024];
-	char listen_buff[1024];
-	int nread, fd;
-	
-	while (1) {
-		sleep(1);
-		memset(listen_buff, 0, 1024);
-		/* read text from the FIFO_LISTEN */
-		printf("opening %s\n", fifo_feel);
-		fd = open(fifo_feel, O_RDONLY);
-		nread = read(fd, listen_buff, 1024);
-		printf ("From FIFO_FEEL: %s\n", listen_buff);
-		close(fd);
+  int n = -1;
 
-		if (nread) {
-			sprintf(strTextToSend, "%s", listen_buff);
-			websocket_write_back(wsi_p ,(char *)strTextToSend, -1);
-		}
-	}
+
+
+
+  pthread_mutex_lock(&ws_mutex);
+  if (wsi_p != NULL)
+      n = websocket_write_back(wsi_p, msg, -1);
+  pthread_mutex_unlock(&ws_mutex);
+  return n;
 }
 
 
-/* inspect PIPE FIND FACE thread*/
-void* inspect_PIPE_FIND_FACE(void *arg)
+
+
+static void *inspect_PIPE_LISTEN(void *arg)
 {
-	char strTextToSend[1024];
-	char listen_buff[1024];
-	int nread, fd;
+  (void)arg;
+  char listen_buff[FIFO_READ_CHUNK];
+  char strTextToSend[FIFO_READ_CHUNK + 32];
 
 
-	while (1) {
-		sleep(1);
-		memset(listen_buff, 0, 1024);
-		fd = open(fifo_findFace, O_RDONLY);
-		//printf("opening %s\n", fifo_findFace);
-		/* read text from the FIFO_FIND_FACE */
-		nread = read(fd, listen_buff, 1024);
-		if (nread > 0) {
-			printf ("From FIFO_FIND_FACE: %s\n", listen_buff);
-			sprintf(strTextToSend, "Face: %s", listen_buff);
-			websocket_write_back(wsi_p ,(char *)strTextToSend, -1);
-		}
-		close(fd);
-		// read all the pipe.
-		if (nread > 0) {
-			fd = open(fifo_findFace, O_RDONLY | O_NONBLOCK);
-			nread = read(fd, listen_buff, 1024);
-		}
-		close(fd);
-	}
+
+
+  for (;;) {
+      sleep(1);
+      memset(listen_buff, 0, sizeof(listen_buff));
+
+
+
+
+      int fd = open(fifo_listen, O_RDONLY);
+      if (fd < 0) {
+          perror("open fifo_listen");
+          continue;
+      }
+      ssize_t nread = read(fd, listen_buff, sizeof(listen_buff) - 1);
+      close(fd);
+
+
+
+
+      if (nread > 0) {
+          listen_buff[nread < (ssize_t)sizeof(listen_buff) ? (size_t)nread : sizeof(listen_buff) - 1] = '\0';
+          printf("From FIFO_LISTEN: %s\n", listen_buff);
+          snprintf(strTextToSend, sizeof(strTextToSend), "Text: %s", listen_buff);
+          websocket_broadcast_safe(strTextToSend);
+      }
+  }
+  return NULL;
 }
+
+
+
+
+static void *inspect_PIPE_FEEL(void *arg)
+{
+  (void)arg;
+  char listen_buff[FIFO_READ_CHUNK];
+
+
+
+
+  for (;;) {
+      sleep(1);
+      memset(listen_buff, 0, sizeof(listen_buff));
+
+
+
+
+      int fd = open(fifo_feel, O_RDONLY);
+      if (fd < 0) {
+          perror("open fifo_feel");
+          continue;
+      }
+      ssize_t nread = read(fd, listen_buff, sizeof(listen_buff) - 1);
+      close(fd);
+
+
+
+
+      if (nread > 0) {
+          listen_buff[nread < (ssize_t)sizeof(listen_buff) ? (size_t)nread : sizeof(listen_buff) - 1] = '\0';
+          printf("From FIFO_FEEL: %s\n", listen_buff);
+          websocket_broadcast_safe(listen_buff);
+      }
+  }
+  return NULL;
+}
+
+
+
+
+static void *inspect_PIPE_FIND_FACE(void *arg)
+{
+  (void)arg;
+  char listen_buff[FIFO_READ_CHUNK];
+  char strTextToSend[FIFO_READ_CHUNK + 32];
+
+
+
+
+  for (;;) {
+      sleep(1);
+      memset(listen_buff, 0, sizeof(listen_buff));
+
+
+
+
+      int fd = open(fifo_findFace, O_RDONLY);
+      if (fd < 0) {
+          perror("open fifo_findFace");
+          continue;
+      }
+      ssize_t nread = read(fd, listen_buff, sizeof(listen_buff) - 1);
+      close(fd);
+
+
+
+
+      if (nread > 0) {
+          listen_buff[nread < (ssize_t)sizeof(listen_buff) ? (size_t)nread : sizeof(listen_buff) - 1] = '\0';
+          printf("From FIFO_FIND_FACE: %s\n", listen_buff);
+          snprintf(strTextToSend, sizeof(strTextToSend), "Face: %s", listen_buff);
+          websocket_broadcast_safe(strTextToSend);
+
+
+
+
+          fd = open(fifo_findFace, O_RDONLY | O_NONBLOCK);
+          if (fd >= 0) {
+              (void)read(fd, listen_buff, sizeof(listen_buff));
+              close(fd);
+          }
+      }
+  }
+  return NULL;
+}
+
+
+
+
+struct per_session_data {
+  int fd;
+};
+
+
+
 
 static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len)
 {
-	char strSystem[256];
-	FILE * file;
-	int cmd_say;
+  (void)user;
 
-	switch (reason) {
- 
-	case LWS_CALLBACK_ESTABLISHED:
-		wsi_p = wsi;
 
-		// Log
-		printf(KYEL"[Main Service] Connection established\n"RESET);
-		break;
-		
-		//* If receive a data from client*/
-	case LWS_CALLBACK_RECEIVE:
-		cmd_say = 0;
 
-		printf(KCYN_L"[Main Service] Server recvived:%s\n"RESET,(char *)in);
 
-		// detect 'say' command
-		char in_copy[1024];
-		strcpy(in_copy, in);
-		char* token = strtok(in_copy, " ");
-		while(token) {
-			// printf("token: %s\n", token);
-			token = strtok(NULL, " ");
-			if ( (token) && (strcmp(token, "say") == 0) ) { // say command detected.
-				token = strtok(NULL, " ");
-				if (strcmp(token, "-t") == 0) {
-					cmd_say = 1;
-					token = strtok(NULL, "\"");
-					int fd;
-					/* write text to the FIFO */
-					fd = open(fifo_say, O_WRONLY);
-					sprintf(in_copy,"%s", token);
-					sprintf (strSystem, "To FIFO_SAY: %s\n", in_copy);
-					write(fd, in_copy, strlen(in_copy));
-					close(fd);
-					/* remove the FIFO */
-					//unlink(fifo_say);
-				}
-			}
-		}
-		if (!cmd_say) {
-			int fd;
-			/* write text to the FIFO */
-			fd = open(fifo_cmd, O_WRONLY);
-			sprintf (strSystem, "To FIFO_CMD: %s\n", in);
-			write(fd, in, strlen(in));
-			close(fd);
-		}
-		//system ("../PiCmd.py -c nose -co red");
+  switch (reason) {
+  case LWS_CALLBACK_ESTABLISHED:
+      pthread_mutex_lock(&ws_mutex);
+      wsi_p = wsi;
+      pthread_mutex_unlock(&ws_mutex);
+      printf(KYEL "[Main Service] Connection established\n" RESET);
+      break;
 
-		//* echo back to client*/
-		printf("%s\n", strSystem);
-		websocket_write_back(wsi ,(char *)strSystem, -1);
-		
-		break;
-	case LWS_CALLBACK_CLOSED:
-		printf(KYEL"[Main Service] Client close.\n"RESET);
-		break;
-		
-	default:
-		break;
-	}
-	
-	return 0;
+
+
+
+  case LWS_CALLBACK_RECEIVE: {
+      if (in == NULL || len == 0)
+          break;
+
+
+
+
+      char in_copy[1024];
+      size_t copy_len = len;
+      if (copy_len >= sizeof(in_copy))
+          copy_len = sizeof(in_copy) - 1;
+      memcpy(in_copy, in, copy_len);
+      in_copy[copy_len] = '\0';
+
+
+
+
+      printf(KCYN_L "[Main Service] Server received:%s\n" RESET, in_copy);
+
+
+
+
+      /* Same token walk as original: first strtok(NULL) before checking "say". */
+      int cmd_say = 0;
+      char *saveptr = NULL;
+      char *token = strtok_r(in_copy, " ", &saveptr);
+      while (token) {
+          token = strtok_r(NULL, " ", &saveptr);
+          if (token && strcmp(token, "say") == 0) {
+              token = strtok_r(NULL, " ", &saveptr);
+              if (token && strcmp(token, "-t") == 0) {
+                  cmd_say = 1;
+                  token = strtok_r(NULL, "\"", &saveptr);
+                  if (token) {
+                      int fd = open(fifo_say, O_WRONLY);
+                      if (fd >= 0) {
+                          (void)write(fd, token, strlen(token));
+                          close(fd);
+                      } else
+                          perror("open fifo_say");
+                  }
+              }
+              break;
+          }
+      }
+
+
+
+
+      char strSystem[256];
+      if (!cmd_say) {
+          int fd = open(fifo_cmd, O_WRONLY);
+          if (fd >= 0) {
+              snprintf(strSystem, sizeof(strSystem), "To FIFO_CMD: %s\n", in_copy);
+              (void)write(fd, in_copy, strlen(in_copy));
+              close(fd);
+          } else {
+              perror("open fifo_cmd");
+              snprintf(strSystem, sizeof(strSystem), "To FIFO_CMD: (open failed)");
+          }
+      } else {
+          snprintf(strSystem, sizeof(strSystem), "To FIFO_SAY: ok\n");
+      }
+
+
+
+
+      printf("%s\n", strSystem);
+      pthread_mutex_lock(&ws_mutex);
+      if (wsi_p != NULL)
+          websocket_write_back(wsi, strSystem, -1);
+      pthread_mutex_unlock(&ws_mutex);
+      break;
+  }
+
+
+
+
+  case LWS_CALLBACK_CLOSED:
+      pthread_mutex_lock(&ws_mutex);
+      if (wsi_p == wsi)
+          wsi_p = NULL;
+      pthread_mutex_unlock(&ws_mutex);
+      printf(KYEL "[Main Service] Client closed.\n" RESET);
+      break;
+
+
+
+
+  default:
+      break;
+  }
+
+
+
+
+  return 0;
 }
 
-struct per_session_data {
-	int fd;
+
+
+
+static struct lws_protocols protocols[] = {
+  {
+      "my-echo-protocol",
+      ws_service_callback,
+      sizeof(struct per_session_data),
+      4096,
+  },
+  { NULL, NULL, 0, 0 },
 };
 
-int main(void) {
-	// server url will usd port 5000
-	int port = 51717;
-	const char *interface = NULL;
-	struct lws_context_creation_info info;
-	struct lws_protocols protocol;
-	struct lws_context *context;
-	// Not using ssl
-	const char *cert_path = NULL;
-	const char *key_path = NULL;
-	// no special options
-	int opts = 0;
-	int err;
 
-	//* register the signal SIGINT handler */
-	struct sigaction act;
-	act.sa_handler = INT_HANDLER;
-	act.sa_flags = 0;
-	sigemptyset(&act.sa_mask);
-	sigaction( SIGINT, &act, 0);
 
-	//* setup websocket protocol */
-	protocol.name = "my-echo-protocol";
-	protocol.callback = ws_service_callback;
-	protocol.per_session_data_size=sizeof(struct per_session_data);
-	protocol.rx_buffer_size = 0;
 
-	//* setup websocket context info*/
-	memset(&info, 0, sizeof info);
-	info.port = port;
-	info.iface = interface;
-	info.protocols = &protocol;
-	// TODO: comprobar, se ha quitado para que no salga el warning de deprecated
-	info.extensions = NULL; //lws_get_internal_extensions();
-	info.ssl_cert_filepath = cert_path;
-	info.ssl_private_key_filepath = key_path;
-	info.gid = -1;
-	info.uid = -1;
-	info.options = opts;
+int main(void)
+{
+  const int port = 51717;
+  struct lws_context_creation_info info;
+  struct lws_context *context;
 
-	//* create libwebsocket context. */
-	context = lws_create_context(&info);
-	if (context == NULL) {
-		printf(KRED"[Main] Websocket context create error.\n"RESET);
-		return -1;
-	}
-	printf(KGRN"[Main] Websocket context create success.\n"RESET);
 
-	/* create the FIFO_SAY (named pipe) */
-	mkfifo(fifo_say, 0666);
-	printf("Creating fifo_say...\n");
-	/* create the FIFO_CMD (named pipe) */
-	mkfifo(fifo_cmd, 0666);
-	printf("Creating fifo_cmd...\n");
 
-	// create inspect PIPE LISTEN thread
-	err = pthread_create(&tid, NULL, &inspect_PIPE_LISTEN, NULL);
-	if (err != 0)
-		printf("\ncan't create thread :[%s]", strerror(err));
-	else
-	printf("\n Thread PIPE_LISTEN created successfully\n");
 
-	// create inspect PIPE FEEL thread
-	err = pthread_create(&tid_2, NULL, &inspect_PIPE_FEEL, NULL);
-	if (err != 0)
-		printf("\ncan't create thread :[%s]", strerror(err));
-	else
-	printf("\n Thread PIPE_FEEL created successfully\n");
+  struct sigaction act;
+  memset(&act, 0, sizeof(act));
+  act.sa_handler = INT_HANDLER;
+  sigemptyset(&act.sa_mask);
+  if (sigaction(SIGINT, &act, NULL) != 0) {
+      perror("sigaction");
+      return 1;
+  }
 
-	// create inspect PIPE FIND_FACE thread
-	err = pthread_create(&tid_2, NULL, &inspect_PIPE_FIND_FACE, NULL);
-	if (err != 0)
-		printf("\ncan't create thread :[%s]", strerror(err));
-	else
-		printf("\n Thread PIPE_FIND_FACE created successfully\n");
 
-	//* websocket service */
-	while ( !destroy_flag) {
-		lws_service(context, 50);
-	}
 
-	usleep(10);
-	lws_context_destroy(context);
 
-	return 0;
+  memset(&info, 0, sizeof(info));
+  info.port = (unsigned int)port;
+  info.iface = NULL;
+  info.protocols = protocols;
+  info.extensions = NULL;
+  info.ssl_cert_filepath = NULL;
+  info.ssl_private_key_filepath = NULL;
+  info.gid = -1;
+  info.uid = -1;
+  info.options = 0;
+
+
+
+
+  context = lws_create_context(&info);
+  if (context == NULL) {
+      fprintf(stderr, KRED "[Main] WebSocket context create error.\n" RESET);
+      return 1;
+  }
+  printf(KGRN "[Main] WebSocket context create success (port %d).\n" RESET, port);
+
+
+
+
+  if (mkfifo(fifo_say, 0666) != 0 && errno != EEXIST)
+      perror("mkfifo fifo_say");
+  if (mkfifo(fifo_cmd, 0666) != 0 && errno != EEXIST)
+      perror("mkfifo fifo_cmd");
+
+
+
+
+  pthread_t tid_listen, tid_feel, tid_face;
+  int err = pthread_create(&tid_listen, NULL, inspect_PIPE_LISTEN, NULL);
+  if (err != 0)
+      fprintf(stderr, "pthread_create LISTEN: %s\n", strerror(err));
+  else
+      printf("Thread PIPE_LISTEN started.\n");
+
+
+
+
+  err = pthread_create(&tid_feel, NULL, inspect_PIPE_FEEL, NULL);
+  if (err != 0)
+      fprintf(stderr, "pthread_create FEEL: %s\n", strerror(err));
+  else
+      printf("Thread PIPE_FEEL started.\n");
+
+
+
+
+  err = pthread_create(&tid_face, NULL, inspect_PIPE_FIND_FACE, NULL);
+  if (err != 0)
+      fprintf(stderr, "pthread_create FIND_FACE: %s\n", strerror(err));
+  else
+      printf("Thread PIPE_FIND_FACE started.\n");
+
+
+
+
+  while (!destroy_flag)
+      lws_service(context, 50);
+
+
+
+
+  lws_context_destroy(context);
+  return 0;
 }

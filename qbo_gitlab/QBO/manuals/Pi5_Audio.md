@@ -19,6 +19,25 @@ audioPlaybackDevice: plughw:0,0
 # Last resort: resample with sox to raw S32 48k stereo, play to hardware
 # audioPlaybackMode: raw48
 # audioPlaybackHwDevice: hw:0,0
+
+# hq48 only if plughw is bad; gain only if you hear clipping (default is 0)
+# audioPlaybackMode: hq48
+# audioPlaybackGainDb: -6
+```
+
+## If playback got worse
+
+1. In **`config.yml`**, remove **`audioPlaybackMode`**, **`audioPlaybackGainDb`**, and **`audioPlaybackDevice`** (or set mode to **`plughw`** only).
+2. Redeploy **`QboTalk.py`** — default is **pico2wave + aplay plughw**, no sox.
+
+## Test script
+
+```bash
+# Only the simple path (pico2wave + plughw)
+MINIMAL=1 bash scripts/test_audio_modes.sh
+
+# Full comparisons; optional clipping fix
+GAIN_DB=-12 bash scripts/test_audio_modes.sh
 ```
 
 `QboTalk` uses these keys. Other modules (`Speak.py`, `Start.py`, etc.) still use `convertQBO` until updated; point `convertQBO` at a **plug → plughw** chain in `/etc/asound.conf` for consistent behaviour.

@@ -3,7 +3,6 @@ import time
 from typing import Callable, Optional
 
 import numpy as np
-import sounddevice as sd
 
 try:
 	import openwakeword
@@ -54,6 +53,8 @@ class OpenWakeWordListener:
 		self._thread.start()
 
 	def _run(self):
+		import sounddevice as sd
+
 		def audio_callback(indata, frames, time_info, status):
 			if self._stop.is_set() or self._model is None:
 				raise sd.CallbackStop()
