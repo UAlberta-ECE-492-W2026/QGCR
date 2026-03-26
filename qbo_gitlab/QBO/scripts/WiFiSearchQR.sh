@@ -19,7 +19,7 @@ then
 		echo "QR recognition is already running"
 	else
 	    pico2wave -l "en-US" -w /opt/qbo/sounds/pico2wave.wav "I'm not connected to the internet. Start scanning QR code." && aplay -D convertQBO /opt/qbo/sounds/pico2wave.wav
-		python /opt/qbo/RTQR.py
+		python3 /opt/qbo/RTQR.py
 		pico2wave -l "en-US" -w /opt/qbo/sounds/pico2wave.wav "Got it, I'm connecting to the internet" && aplay -D convertQBO /opt/qbo/sounds/pico2wave.wav
 		sleep 20
 		internetStatus2=$(curl -s -I https://www.google.com/ | grep "HTTP/2 200")
@@ -28,7 +28,7 @@ then
 			pico2wave -l "en-US" -w /opt/qbo/sounds/pico2wave.wav "Sorry, your SSID or password is wrong, try again." && aplay -D convertQBO /opt/qbo/sounds/pico2wave.wav
 		else
 			pico2wave -l "en-US" -w /opt/qbo/sounds/pico2wave.wav "I am connected" && aplay -D convertQBO /opt/qbo/sounds/pico2wave.wav
-			python /opt/qbo/Start.py
+			python3 /opt/qbo/Start.py
 		fi
 	fi
 fi

@@ -20,7 +20,7 @@ if [[ $1 = $START ]]; then
 	else
 		echo "launching PiFaceFast"
 		PYTHONHTTPSVERIFY=0
-		python /opt/qbo/PiFaceFast.py &
+		python3 /opt/qbo/PiFaceFast.py &
         #/opt/qbo/PiFaceFast.py > /dev/null &
 	fi
 fi
