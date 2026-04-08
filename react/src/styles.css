@@ -327,9 +327,20 @@ input[type='text']::placeholder {
   gap: 10px;
 }
 
+.control-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
 .control-row {
   display: flex;
   gap: 10px;
+}
+
+.control-error {
+  color: var(--danger);
 }
 
 @media (max-width: 900px) {
